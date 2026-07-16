@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { TextInput, SelectItem } from "@tremor/react";
+import { useEffect } from "react";
+import { TextInput } from "@tremor/react";
 
 import { Button as Button2, Modal, Form, Select as Select2, InputNumber } from "antd";
 
@@ -15,12 +15,11 @@ interface EditUserModalProps {
 }
 
 const EditUserModal: React.FC<EditUserModalProps> = ({ visible, possibleUIRoles, onCancel, user, onSubmit }) => {
-  const [editedUser, setEditedUser] = useState(user);
   const [form] = Form.useForm();
 
   useEffect(() => {
     form.resetFields();
-  }, [user]);
+  }, [form, user]);
 
   const handleCancel = async () => {
     form.resetFields();
@@ -43,7 +42,12 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ visible, possibleUIRoles,
       <Form
         form={form}
         onFinish={handleEditSubmit}
-        initialValues={user} // Pass initial values here
+        initialValues={{
+          ...user,
+          user_id: user.user_id ?? "",
+          user_email: user.user_email ?? "",
+          user_role: user.user_role ?? "",
+        }}
         labelCol={{ span: 8 }}
         wrapperCol={{ span: 16 }}
         labelAlign="left"
@@ -61,14 +65,14 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ visible, possibleUIRoles,
             <Select2>
               {possibleUIRoles &&
                 Object.entries(possibleUIRoles).map(([role, { ui_label, description }]) => (
-                  <SelectItem key={role} value={role} title={ui_label}>
+                  <Select2.Option key={role} value={role} title={ui_label}>
                     <div className="flex">
                       {ui_label}{" "}
                       <p className="ml-2" style={{ color: "gray", fontSize: "12px" }}>
                         {description}
                       </p>
                     </div>
-                  </SelectItem>
+                  </Select2.Option>
                 ))}
             </Select2>
           </Form.Item>

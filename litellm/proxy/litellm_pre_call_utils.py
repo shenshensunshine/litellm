@@ -992,6 +992,12 @@ class LiteLLMProxyRequestSetup:
         )
         if user_api_key_dict.budget_reservation is not None:
             data[_metadata_variable_name]["user_api_key_budget_reservation"] = user_api_key_dict.budget_reservation
+        # 2026-07-16: Carry the Team Token reservation into logging callbacks for
+        # post-call usage reconciliation and cancellation cleanup.
+        if user_api_key_dict.token_quota_reservation is not None:
+            data[_metadata_variable_name]["user_api_key_token_quota_reservation"] = (
+                user_api_key_dict.token_quota_reservation
+            )
         # Add the full UserAPIKeyAuth object for MCP server access control
         data[_metadata_variable_name]["user_api_key_auth"] = user_api_key_dict
         return data

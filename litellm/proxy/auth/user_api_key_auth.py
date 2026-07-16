@@ -2413,9 +2413,28 @@ async def _reserve_budget_after_common_checks(
     end_user_object: Optional[LiteLLM_EndUserTable] = None,
 ) -> None:
     user_api_key_auth_obj.budget_reservation = None
-    if skip_budget_checks:
-        return
-    if general_settings.get("disable_budget_reservation") is True:
+    # 2026-07-16: Reset the request-scoped Team Token reservation before each
+    # admission attempt so a reused auth object cannot carry stale quota state.
+    user_api_key_auth_obj.token_quota_reservation = None
+    if not skip_budget_checks and general_settings.get("disable_budget_reservation") is not True:
+        from litellm.proxy.spend_tracking.budget_reservation import (
+            reserve_budget_for_request,
+        )
+
+        user_api_key_auth_obj.budget_reservation = await reserve_budget_for_request(
+            request_body=request_data,
+            route=route,
+            llm_router=llm_router,
+            valid_token=user_api_key_auth_obj,
+            team_object=team_object,
+            user_object=user_object,
+            prisma_client=prisma_client,
+            user_api_key_cache=user_api_key_cache,
+            proxy_logging_obj=proxy_logging_obj,
+            end_user_id=end_user_id,
+            end_user_object=end_user_object,
+        )
+    elif not skip_budget_checks:
         verbose_proxy_logger.warning(
             "disable_budget_reservation is enabled: skipping optimistic budget "
             "reservation. Budget enforcement is read-time only — concurrent "
@@ -2424,25 +2443,28 @@ async def _reserve_budget_after_common_checks(
             "Set disable_budget_reservation to False or remove it to restore "
             "hard per-request budget enforcement."
         )
-        return
 
-    from litellm.proxy.spend_tracking.budget_reservation import (
-        reserve_budget_for_request,
-    )
+    # 2026-07-16: Reserve the Team's periodic Token quota after the existing
+    # monetary reservation; the token module is a no-op when Team metadata has
+    # no `token_quota` policy configured.
+    from litellm.proxy.spend_tracking.team_token_quota import reserve_team_token_quota
 
-    user_api_key_auth_obj.budget_reservation = await reserve_budget_for_request(
-        request_body=request_data,
-        route=route,
-        llm_router=llm_router,
-        valid_token=user_api_key_auth_obj,
-        team_object=team_object,
-        user_object=user_object,
-        prisma_client=prisma_client,
-        user_api_key_cache=user_api_key_cache,
-        proxy_logging_obj=proxy_logging_obj,
-        end_user_id=end_user_id,
-        end_user_object=end_user_object,
-    )
+    try:
+        user_api_key_auth_obj.token_quota_reservation = await reserve_team_token_quota(
+            request_body=request_data,
+            route=route,
+            valid_token=user_api_key_auth_obj,
+            team_object=team_object,
+            prisma_client=prisma_client,
+            proxy_logging_obj=proxy_logging_obj,
+        )
+    except Exception:
+        if user_api_key_auth_obj.budget_reservation is not None:
+            from litellm.proxy.spend_tracking.budget_reservation import release_budget_reservation
+
+            await release_budget_reservation(user_api_key_auth_obj.budget_reservation)
+            user_api_key_auth_obj.budget_reservation = None
+        raise
 
 
 def _should_skip_budget_checks(

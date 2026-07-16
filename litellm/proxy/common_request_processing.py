@@ -2686,8 +2686,12 @@ class ProxyBaseLLMRequestProcessing:
                 from litellm.proxy.spend_tracking.budget_reservation import (
                     release_budget_reservation_on_cancel,
                 )
+                from litellm.proxy.spend_tracking.team_token_quota import release_team_token_quota
 
                 await release_budget_reservation_on_cancel(getattr(user_api_key_dict, "budget_reservation", None))
+                # 2026-07-16: No chunk was delivered, so release the Team Token
+                # reservation alongside the monetary reservation on cancellation.
+                await release_team_token_quota(getattr(user_api_key_dict, "token_quota_reservation", None))
             raise
         except Exception as e:
             verbose_proxy_logger.exception(

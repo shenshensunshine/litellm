@@ -1,5 +1,5 @@
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { Button, SelectItem, TextInput, Textarea } from "@tremor/react";
+import { Button, TextInput, Textarea } from "@tremor/react";
 import { Checkbox, Form, Select, Tooltip } from "antd";
 import React, { useState } from "react";
 import { all_admin_roles } from "@/utils/roles";
@@ -42,13 +42,13 @@ export function UserEditView({
     setUnlimitedBudget(isUnlimited);
 
     form.setFieldsValue({
-      user_id: userData.user_id,
-      user_email: userData.user_info?.user_email,
-      user_alias: userData.user_info?.user_alias,
-      user_role: userData.user_info?.user_role,
+      user_id: userData.user_id ?? "",
+      user_email: userData.user_info?.user_email ?? "",
+      user_alias: userData.user_info?.user_alias ?? "",
+      user_role: userData.user_info?.user_role ?? "",
       models: userData.user_info?.models || [],
       max_budget: isUnlimited ? "" : maxBudget,
-      budget_duration: userData.user_info?.budget_duration,
+      budget_duration: userData.user_info?.budget_duration ?? "",
       metadata: userData.user_info?.metadata ? JSON.stringify(userData.user_info.metadata, null, 2) : undefined,
     });
   }, [userData, form]);
@@ -80,7 +80,21 @@ export function UserEditView({
   };
 
   return (
-    <Form form={form} onFinish={handleSubmit} layout="vertical">
+    <Form
+      form={form}
+      onFinish={handleSubmit}
+      layout="vertical"
+      initialValues={{
+        user_id: userData.user_id ?? "",
+        user_email: userData.user_info?.user_email ?? "",
+        user_alias: userData.user_info?.user_alias ?? "",
+        user_role: userData.user_info?.user_role ?? "",
+        models: userData.user_info?.models ?? [],
+        max_budget: userData.user_info?.max_budget ?? "",
+        budget_duration: userData.user_info?.budget_duration ?? "",
+        metadata: userData.user_info?.metadata ? JSON.stringify(userData.user_info.metadata, null, 2) : "",
+      }}
+    >
       {!isBulkEdit && (
         <Form.Item label="User ID" name="user_id">
           <TextInput disabled />
@@ -110,15 +124,15 @@ export function UserEditView({
       >
         <Select>
           {possibleUIRoles &&
-            Object.entries(possibleUIRoles).map(([role, { ui_label, description }]) => (
-              <SelectItem key={role} value={role} title={ui_label}>
+              Object.entries(possibleUIRoles).map(([role, { ui_label, description }]) => (
+              <Select.Option key={role} value={role} title={ui_label}>
                 <div className="flex">
                   {ui_label}{" "}
                   <p className="ml-2" style={{ color: "gray", fontSize: "12px" }}>
                     {description}
                   </p>
                 </div>
-              </SelectItem>
+              </Select.Option>
             ))}
         </Select>
       </Form.Item>

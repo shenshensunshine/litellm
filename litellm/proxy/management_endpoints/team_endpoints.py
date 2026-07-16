@@ -3616,6 +3616,20 @@ async def team_info(
         # Resolve resources inherited from access groups
         await _resolve_team_access_group_resources(_team_info)
 
+        # 2026-07-16: Expose the Team Token quota state through the existing
+        # team-info response so the Dashboard can render the same live period
+        # used by request admission without a second permission surface.
+        from litellm.proxy.spend_tracking.team_token_quota import get_team_token_quota_status
+
+        token_quota_status = await get_team_token_quota_status(
+            team_object=_team_info,
+            prisma_client=prisma_client,
+        )
+        if token_quota_status is not None:
+            team_metadata = dict(_team_info.metadata or {})
+            team_metadata["token_quota_status"] = token_quota_status
+            _team_info.metadata = team_metadata
+
         response_object = TeamInfoResponseObject(
             team_id=team_id,
             team_info=_team_info,

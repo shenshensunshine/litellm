@@ -87,11 +87,15 @@ const CredentialsPanel: React.FC<CredentialsPanelProps> = ({ uploadProps }) => {
       },
     };
 
-    // Add to list and close modal
-    await credentialCreateCall(accessToken, newCredential);
-    NotificationsManager.success("Credential added successfully");
-    setIsAddModalOpen(false);
-    await refetchCredentials();
+    try {
+      await credentialCreateCall(accessToken, newCredential);
+      NotificationsManager.success("Credential added successfully");
+      setIsAddModalOpen(false);
+      await refetchCredentials();
+    } catch (error) {
+      NotificationsManager.fromBackend(error);
+      throw error;
+    }
   };
 
   const renderProviderBadge = (provider: string) => {

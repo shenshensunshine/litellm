@@ -16,6 +16,7 @@ export interface Team {
   keys_count?: number;
   members_with_roles: Member[];
   spend: number;
+  metadata?: Record<string, unknown>;
   access_group_ids?: string[];
   access_group_models?: string[];
   access_group_mcp_server_ids?: string[];

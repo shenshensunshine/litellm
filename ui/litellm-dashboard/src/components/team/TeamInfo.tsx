@@ -139,6 +139,27 @@ export interface TeamData {
   team_memberships: TeamMembership[];
 }
 
+interface TeamTokenQuotaStatus {
+  enabled: boolean;
+  limit: number;
+  projected_tokens: number;
+  usage_ratio: number;
+  warning_thresholds: number[];
+  duration: string;
+  period_start: string;
+  period_end: string;
+}
+
+const getTokenQuotaStatusStyles = (usageRatio: number) => {
+  if (usageRatio >= 0.9) {
+    return { bar: "bg-red-500", text: "text-red-600", label: "Critical" };
+  }
+  if (usageRatio >= 0.8) {
+    return { bar: "bg-yellow-500", text: "text-yellow-600", label: "Warning" };
+  }
+  return { bar: "bg-green-500", text: "text-green-600", label: "Healthy" };
+};
+
 export interface TeamInfoProps {
   teamId: string;
   onUpdate: (data: any) => void;
@@ -465,6 +486,7 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
         const rawMetadata = values.metadata ? JSON.parse(values.metadata) : {};
         // Exclude soft_budget_alerting_emails from parsed metadata since it's handled separately
         const { soft_budget_alerting_emails, ...rest } = rawMetadata;
+        delete rest.token_quota;
         parsedMetadata = rest;
       } catch (e) {
         NotificationsManager.fromBackend("Invalid JSON in metadata field");
@@ -513,6 +535,19 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
           ? { allowed_passthrough_routes: info.metadata.allowed_passthrough_routes }
           : {};
 
+      // 2026-07-16: Persist the Team Token quota through the existing metadata
+      // field used by the backend admission and dashboard status paths.
+      const tokenQuotaLimit = sanitizeNumeric(values.token_quota_limit);
+      const tokenQuotaMetadata =
+        tokenQuotaLimit !== null && Number(tokenQuotaLimit) > 0
+          ? {
+              limit: Number(tokenQuotaLimit),
+              duration: values.token_quota_duration || "monthly",
+              warning_thresholds: [0.8, 0.9],
+              max_output_tokens: Number(values.token_quota_max_output_tokens || 4096),
+            }
+          : null;
+
       const updateData: any = {
         team_id: teamId,
         team_alias: values.team_alias,
@@ -538,6 +573,7 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
                   .map((email: string) => email.trim())
                   .filter((email: string) => email.length > 0)
               : values.soft_budget_alerting_emails || [],
+          token_quota: tokenQuotaMetadata,
           ...(secretManagerSettings !== undefined ? { secret_manager_settings: secretManagerSettings } : {}),
         },
         ...(values.policies?.length > 0 ? { policies: values.policies } : {}),
@@ -754,6 +790,38 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
                   </div>
                 </Card>
 
+                {(() => {
+                  const tokenQuota = info.metadata?.token_quota_status as TeamTokenQuotaStatus | undefined;
+                  if (!tokenQuota?.enabled || tokenQuota.limit <= 0) return null;
+                  const ratio = Math.max(tokenQuota.usage_ratio, 0);
+                  const styles = getTokenQuotaStatusStyles(ratio);
+                  const percentage = Math.round(ratio * 100);
+                  return (
+                    <Card>
+                      <div className="flex items-center justify-between">
+                        <Text>Token Quota</Text>
+                        <span className={`text-xs font-medium ${styles.text}`}>{styles.label}</span>
+                      </div>
+                      <div className="mt-2">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <Title>{formatNumberWithCommas(tokenQuota.projected_tokens, 0)}</Title>
+                          <Text>of {formatNumberWithCommas(tokenQuota.limit, 0)}</Text>
+                        </div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${styles.bar}`}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          />
+                        </div>
+                        <div className="mt-1 flex justify-between text-xs text-gray-500">
+                          <span>{percentage}% used</span>
+                          <span>Resets {tokenQuota.duration}</span>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })()}
+
                 <Card>
                   <Text>Rate Limits</Text>
                   <div className="mt-2">
@@ -948,6 +1016,9 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
                       max_budget: info.max_budget,
                       soft_budget: info.soft_budget,
                       budget_duration: info.budget_duration,
+                      token_quota_limit: info.metadata?.token_quota?.limit ?? null,
+                      token_quota_duration: info.metadata?.token_quota?.duration ?? "monthly",
+                      token_quota_max_output_tokens: info.metadata?.token_quota?.max_output_tokens ?? 4096,
                       team_member_tpm_limit: info.team_member_budget_table?.tpm_limit,
                       team_member_rpm_limit: info.team_member_budget_table?.rpm_limit,
                       team_member_budget: info.team_member_budget_table?.max_budget,
@@ -967,6 +1038,7 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
                               model_tpm_limit,
                               model_rpm_limit,
                               allowed_passthrough_routes,
+                              token_quota,
                               ...rest
                             }) => rest)(info.metadata),
                             null,
@@ -1032,6 +1104,26 @@ const TeamInfoView: React.FC<TeamInfoProps> = ({
 
                     <Form.Item label="Soft Budget (USD)" name="soft_budget">
                       <NumericalInput step={0.01} precision={2} style={{ width: "100%" }} />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Team Token Quota"
+                      name="token_quota_limit"
+                      tooltip="Cumulative Token limit for this team. The progress bar turns yellow at 80% and red at 90%."
+                    >
+                      <NumericalInput step={1} precision={0} style={{ width: "100%" }} placeholder="Unlimited" />
+                    </Form.Item>
+
+                    <Form.Item label="Token Quota Period" name="token_quota_duration">
+                      <Select>
+                        <Select.Option value="daily">Daily</Select.Option>
+                        <Select.Option value="weekly">Weekly</Select.Option>
+                        <Select.Option value="monthly">Monthly</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Max Output Tokens per Request" name="token_quota_max_output_tokens">
+                      <NumericalInput step={1} precision={0} style={{ width: "100%" }} />
                     </Form.Item>
 
                     <Form.Item

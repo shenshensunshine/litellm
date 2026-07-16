@@ -58,6 +58,16 @@ class _ProxyDBLogger(CustomLogger):
                     "Failed to invalidate budget reservation counters after failure release failed"
                 )
 
+        # 2026-07-16: A failed provider call has no reliable completed usage;
+        # release its Team Token pre-admission reservation so it cannot strand
+        # the department's periodic quota.
+        try:
+            from litellm.proxy.spend_tracking.team_token_quota import release_team_token_quota
+
+            await release_team_token_quota(user_api_key_dict.token_quota_reservation)
+        except Exception:
+            verbose_proxy_logger.exception("Failed to release Team Token quota reservation during failure handling")
+
         request_route = user_api_key_dict.request_route
         if _ProxyDBLogger._should_track_errors_in_db() is False:
             return
@@ -196,12 +206,25 @@ class _ProxyDBLogger(CustomLogger):
                 metadata = await _ProxyDBLogger._enrich_failure_metadata_with_key_info(metadata=metadata)
                 _write_spend_metadata_to_kwargs(kwargs=kwargs, metadata=metadata)
             budget_reservation = _get_budget_reservation_from_metadata(metadata=metadata)
+            token_quota_reservation = metadata.get("user_api_key_token_quota_reservation")
             user_id = cast(Optional[str], metadata.get("user_api_key_user_id", None))
             team_id = cast(Optional[str], metadata.get("user_api_key_team_id", None))
             org_id = cast(Optional[str], metadata.get("user_api_key_org_id", None))
             key_alias = cast(Optional[str], metadata.get("user_api_key_alias", None))
             end_user_max_budget = metadata.get("user_api_end_user_max_budget", None)
             sl_object: Optional[StandardLoggingPayload] = kwargs.get("standard_logging_object", None)
+            # 2026-07-16: Replace the request-time maximum Token reservation
+            # with provider-reported actual usage once the final response is available.
+            if not (kwargs.get("stream") is True and "complete_streaming_response" not in kwargs):
+                from litellm.proxy.spend_tracking.team_token_quota import (
+                    get_actual_tokens,
+                    reconcile_team_token_quota,
+                )
+
+                await reconcile_team_token_quota(
+                    reservation=token_quota_reservation if isinstance(token_quota_reservation, dict) else None,
+                    actual_tokens=get_actual_tokens(response=completion_response, kwargs=kwargs),
+                )
             response_cost = (
                 sl_object.get("response_cost", None) if sl_object is not None else kwargs.get("response_cost", None)
             )

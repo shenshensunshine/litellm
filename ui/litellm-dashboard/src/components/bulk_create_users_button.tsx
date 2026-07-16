@@ -544,7 +544,7 @@ const BulkCreateUsersButton: React.FC<BulkCreateUsersProps> = ({
         open={isModalVisible}
         width={800}
         onCancel={() => setIsModalVisible(false)}
-        bodyStyle={{ maxHeight: "70vh", overflow: "auto" }}
+        styles={{ body: { maxHeight: "70vh", overflow: "auto" } }}
         footer={null}
       >
         <div className="flex flex-col">

@@ -563,6 +563,25 @@ const Teams: React.FC<TeamProps> = ({ accessToken, userID, userRole, premiumUser
           }
         }
 
+        // 2026-07-16: Store Token quota settings in Team metadata so newly
+        // created teams use the same admission and Dashboard status path.
+        const metadata = formValues.metadata ? JSON.parse(formValues.metadata) : {};
+        const tokenQuotaLimit = Number(formValues.token_quota_limit);
+        if (Number.isFinite(tokenQuotaLimit) && tokenQuotaLimit > 0) {
+          metadata.token_quota = {
+            limit: tokenQuotaLimit,
+            duration: formValues.token_quota_duration || "monthly",
+            warning_thresholds: [0.8, 0.9],
+            max_output_tokens: Number(formValues.token_quota_max_output_tokens || 4096),
+          };
+        } else {
+          delete metadata.token_quota;
+        }
+        formValues.metadata = JSON.stringify(metadata);
+        delete formValues.token_quota_limit;
+        delete formValues.token_quota_duration;
+        delete formValues.token_quota_max_output_tokens;
+
         await teamCreateCall(accessToken, formValues);
         NotificationsManager.success("Team created");
         await fetchTeamsV2({
@@ -1190,6 +1209,23 @@ const Teams: React.FC<TeamProps> = ({ accessToken, userID, userRole, premiumUser
 
               <Form.Item label="Max Budget (USD)" name="max_budget">
                 <NumericalInput step={0.01} precision={2} width={200} />
+              </Form.Item>
+              <Form.Item
+                label="Team Token Quota"
+                name="token_quota_limit"
+                tooltip="Cumulative Token limit for this team. The progress bar turns yellow at 80% and red at 90%."
+              >
+                <NumericalInput step={1} precision={0} width={400} placeholder="Unlimited" />
+              </Form.Item>
+              <Form.Item label="Token Quota Period" name="token_quota_duration" initialValue="monthly">
+                <Select>
+                  <Select.Option value="daily">Daily</Select.Option>
+                  <Select.Option value="weekly">Weekly</Select.Option>
+                  <Select.Option value="monthly">Monthly</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item label="Max Output Tokens per Request" name="token_quota_max_output_tokens" initialValue={4096}>
+                <NumericalInput step={1} precision={0} width={400} />
               </Form.Item>
               <Form.Item className="mt-8" label="Reset Budget" name="budget_duration">
                 <Select defaultValue={null} placeholder="n/a">

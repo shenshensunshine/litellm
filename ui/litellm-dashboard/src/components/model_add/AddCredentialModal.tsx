@@ -11,7 +11,7 @@ const { Link } = Typography;
 interface AddCredentialsModalProps {
   open: boolean;
   onCancel: () => void;
-  onAddCredential: (values: any) => void;
+  onAddCredential: (values: any) => Promise<void>;
   uploadProps: UploadProps;
 }
 
@@ -19,15 +19,19 @@ const AddCredentialsModal: React.FC<AddCredentialsModalProps> = ({ open, onCance
   const [form] = Form.useForm();
   const [selectedProvider, setSelectedProvider] = useState<Providers>(Providers.OpenAI);
 
-  const handleSubmit = (values: any) => {
+  const handleSubmit = async (values: any) => {
     const filteredValues = Object.entries(values).reduce((acc, [key, value]) => {
       if (value !== "" && value !== undefined && value !== null) {
         acc[key] = value;
       }
       return acc;
     }, {} as any);
-    onAddCredential(filteredValues);
-    form.resetFields();
+    try {
+      await onAddCredential(filteredValues);
+      form.resetFields();
+    } catch {
+      return;
+    }
   };
 
   return (
