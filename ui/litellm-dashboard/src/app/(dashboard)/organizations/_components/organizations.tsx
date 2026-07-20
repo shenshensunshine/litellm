@@ -49,7 +49,6 @@ interface OrganizationsTableProps {
   accessToken: string | null;
   lastRefreshed?: string;
   handleRefreshClick?: () => void;
-  premiumUser: boolean;
 }
 
 export const fetchOrganizations = async (
@@ -67,7 +66,6 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
   accessToken,
   lastRefreshed,
   handleRefreshClick,
-  premiumUser,
 }) => {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [editOrg, setEditOrg] = useState(false);
@@ -175,20 +173,6 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
     setIsOrgModalVisible(false);
     form.resetFields();
   };
-
-  if (!premiumUser) {
-    return (
-      <div>
-        <Text>
-          This is a LiteLLM Enterprise feature, and requires a valid key to use. Get a trial key{" "}
-          <a href="https://www.litellm.ai/#pricing" target="_blank" rel="noopener noreferrer">
-            here
-          </a>
-          .
-        </Text>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full mx-4 h-[75vh]">
@@ -426,7 +410,14 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
           )}
         </Col>
       </Grid>
-      <Modal title="Create Organization" visible={isOrgModalVisible} width={800} footer={null} onCancel={handleCancel}>
+      <Modal
+        title="Create Organization"
+        open={isOrgModalVisible}
+        forceRender
+        width={800}
+        footer={null}
+        onCancel={handleCancel}
+      >
         <Form form={form} onFinish={handleCreate} labelCol={{ span: 8 }} wrapperCol={{ span: 16 }} labelAlign="left">
           <Form.Item
             label="Organization Name"
@@ -453,7 +444,7 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
             <NumericalInput step={0.01} precision={2} width={200} />
           </Form.Item>
           <Form.Item label="Reset Budget" name="budget_duration">
-            <Select2 defaultValue={null} placeholder="n/a">
+            <Select2 placeholder="n/a">
               <Select2.Option value="24h">daily</Select2.Option>
               <Select2.Option value="7d">weekly</Select2.Option>
               <Select2.Option value="30d">monthly</Select2.Option>

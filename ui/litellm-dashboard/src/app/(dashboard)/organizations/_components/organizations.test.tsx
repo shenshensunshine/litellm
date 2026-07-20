@@ -31,7 +31,7 @@ const renderWithQueryClient = (ui: React.ReactElement) => {
 describe("OrganizationsTable", () => {
   it("should render the OrganizationsTable component", () => {
     const { getByText } = renderWithQueryClient(
-      <OrganizationsTable userRole="Admin" accessToken={null} premiumUser={true} />,
+      <OrganizationsTable userRole="Admin" accessToken={null} />,
     );
 
     expect(getByText("+ Create New Organization")).toBeInTheDocument();

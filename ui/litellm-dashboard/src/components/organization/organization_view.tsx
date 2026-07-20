@@ -348,159 +348,161 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
             label: "Settings",
             children: (
               <Card className="overflow-y-auto max-h-[65vh]">
-                <div className="flex justify-between items-center mb-4">
-                  <Title>Organization Settings</Title>
-                  {canEditOrg && !isEditing && (
-                    <TremorButton onClick={() => setIsEditing(true)}>Edit Settings</TremorButton>
-                  )}
-                </div>
-
-                {isEditing ? (
-                  <Form
-                    form={form}
-                    onFinish={handleOrgUpdate}
-                    initialValues={{
-                      organization_alias: orgData.organization_alias,
-                      models: orgData.models,
-                      tpm_limit: orgData.litellm_budget_table.tpm_limit,
-                      rpm_limit: orgData.litellm_budget_table.rpm_limit,
-                      max_budget: orgData.litellm_budget_table.max_budget,
-                      budget_duration: orgData.litellm_budget_table.budget_duration,
-                      metadata: orgData.metadata ? JSON.stringify(orgData.metadata, null, 2) : "",
-                      vector_stores: orgData.object_permission?.vector_stores || [],
-                      mcp_servers_and_groups: {
-                        servers: orgData.object_permission?.mcp_servers || [],
-                        accessGroups: orgData.object_permission?.mcp_access_groups || [],
-                      },
-                    }}
-                    layout="vertical"
-                  >
-                    <Form.Item
-                      label="Organization Name"
-                      name="organization_alias"
-                      rules={[
-                        {
-                          required: true,
-                          message: "Please input an organization name",
-                        },
-                      ]}
-                    >
-                      <TextInput />
-                    </Form.Item>
-
-                    <Form.Item label="Models" name="models">
-                      <ModelSelect
-                        value={form.getFieldValue("models")}
-                        onChange={(values) => form.setFieldValue("models", values)}
-                        context="organization"
-                        options={{
-                          includeSpecialOptions: true,
-                          showAllProxyModelsOverride: true,
-                        }}
-                      />
-                    </Form.Item>
-
-                    <Form.Item label="Max Budget (USD)" name="max_budget">
-                      <NumericalInput step={0.01} precision={2} style={{ width: "100%" }} />
-                    </Form.Item>
-
-                    <Form.Item label="Reset Budget" name="budget_duration">
-                      <Select placeholder="n/a">
-                        <Select.Option value="24h">daily</Select.Option>
-                        <Select.Option value="7d">weekly</Select.Option>
-                        <Select.Option value="30d">monthly</Select.Option>
-                      </Select>
-                    </Form.Item>
-
-                    <Form.Item label="Tokens per minute Limit (TPM)" name="tpm_limit">
-                      <NumericalInput step={1} style={{ width: "100%" }} />
-                    </Form.Item>
-
-                    <Form.Item label="Requests per minute Limit (RPM)" name="rpm_limit">
-                      <NumericalInput step={1} style={{ width: "100%" }} />
-                    </Form.Item>
-
-                    <Form.Item label="Vector Stores" name="vector_stores">
-                      <VectorStoreSelector
-                        onChange={(values) => form.setFieldValue("vector_stores", values)}
-                        value={form.getFieldValue("vector_stores")}
-                        accessToken={accessToken || ""}
-                        placeholder="Select vector stores"
-                      />
-                    </Form.Item>
-
-                    <Form.Item label="MCP Servers & Access Groups" name="mcp_servers_and_groups">
-                      <MCPServerSelector
-                        onChange={(values) => form.setFieldValue("mcp_servers_and_groups", values)}
-                        value={form.getFieldValue("mcp_servers_and_groups")}
-                        accessToken={accessToken || ""}
-                        placeholder="Select MCP servers and access groups"
-                      />
-                    </Form.Item>
-
-                    <Form.Item label="Metadata" name="metadata">
-                      <Input.TextArea rows={4} />
-                    </Form.Item>
-
-                    <div className="sticky z-10 bg-white p-4 border-t border-gray-200 -bottom-6 -inset-x-6">
-                      <div className="flex justify-end items-center gap-2">
-                        <TremorButton variant="secondary" onClick={() => setIsEditing(false)} disabled={isOrgSaving}>
-                          Cancel
-                        </TremorButton>
-                        <TremorButton type="submit" loading={isOrgSaving}>
-                          Save Changes
-                        </TremorButton>
-                      </div>
-                    </div>
-                  </Form>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <Text className="font-medium">Organization Name</Text>
-                      <div>{orgData.organization_alias}</div>
-                    </div>
-                    <div>
-                      <Text className="font-medium">Organization ID</Text>
-                      <div className="font-mono">{orgData.organization_id}</div>
-                    </div>
-                    <div>
-                      <Text className="font-medium">Created At</Text>
-                      <div>{new Date(orgData.created_at).toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <Text className="font-medium">Models</Text>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {orgData.models.map((model, index) => (
-                          <Badge key={index} color="red">
-                            {model}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <Text className="font-medium">Rate Limits</Text>
-                      <div>TPM: {orgData.litellm_budget_table.tpm_limit || "Unlimited"}</div>
-                      <div>RPM: {orgData.litellm_budget_table.rpm_limit || "Unlimited"}</div>
-                    </div>
-                    <div>
-                      <Text className="font-medium">Budget</Text>
-                      <div>
-                        Max:{" "}
-                        {orgData.litellm_budget_table.max_budget !== null
-                          ? `$${formatNumberWithCommas(orgData.litellm_budget_table.max_budget, 4)}`
-                          : "No Limit"}
-                      </div>
-                      <div>Reset: {orgData.litellm_budget_table.budget_duration || "Never"}</div>
-                    </div>
-
-                    <ObjectPermissionsView
-                      objectPermission={orgData.object_permission}
-                      variant="inline"
-                      className="pt-4 border-t border-gray-200"
-                      accessToken={accessToken}
-                    />
+                <Form
+                  form={form}
+                  onFinish={handleOrgUpdate}
+                  initialValues={{
+                    organization_alias: orgData.organization_alias,
+                    models: orgData.models,
+                    tpm_limit: orgData.litellm_budget_table.tpm_limit,
+                    rpm_limit: orgData.litellm_budget_table.rpm_limit,
+                    max_budget: orgData.litellm_budget_table.max_budget,
+                    budget_duration: orgData.litellm_budget_table.budget_duration,
+                    metadata: orgData.metadata ? JSON.stringify(orgData.metadata, null, 2) : "",
+                    vector_stores: orgData.object_permission?.vector_stores || [],
+                    mcp_servers_and_groups: {
+                      servers: orgData.object_permission?.mcp_servers || [],
+                      accessGroups: orgData.object_permission?.mcp_access_groups || [],
+                    },
+                  }}
+                  layout="vertical"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <Title>Organization Settings</Title>
+                    {canEditOrg && !isEditing && (
+                      <TremorButton onClick={() => setIsEditing(true)}>Edit Settings</TremorButton>
+                    )}
                   </div>
-                )}
+
+                  {isEditing ? (
+                    <>
+                      <Form.Item
+                        label="Organization Name"
+                        name="organization_alias"
+                        rules={[
+                          {
+                            required: true,
+                            message: "Please input an organization name",
+                          },
+                        ]}
+                      >
+                        <TextInput />
+                      </Form.Item>
+
+                      <Form.Item label="Models" name="models">
+                        <ModelSelect
+                          value={form.getFieldValue("models")}
+                          onChange={(values) => form.setFieldValue("models", values)}
+                          context="organization"
+                          options={{
+                            includeSpecialOptions: true,
+                            showAllProxyModelsOverride: true,
+                          }}
+                        />
+                      </Form.Item>
+
+                      <Form.Item label="Max Budget (USD)" name="max_budget">
+                        <NumericalInput step={0.01} precision={2} style={{ width: "100%" }} />
+                      </Form.Item>
+
+                      <Form.Item label="Reset Budget" name="budget_duration">
+                        <Select placeholder="n/a">
+                          <Select.Option value="24h">daily</Select.Option>
+                          <Select.Option value="7d">weekly</Select.Option>
+                          <Select.Option value="30d">monthly</Select.Option>
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item label="Tokens per minute Limit (TPM)" name="tpm_limit">
+                        <NumericalInput step={1} style={{ width: "100%" }} />
+                      </Form.Item>
+
+                      <Form.Item label="Requests per minute Limit (RPM)" name="rpm_limit">
+                        <NumericalInput step={1} style={{ width: "100%" }} />
+                      </Form.Item>
+
+                      <Form.Item label="Vector Stores" name="vector_stores">
+                        <VectorStoreSelector
+                          onChange={(values) => form.setFieldValue("vector_stores", values)}
+                          value={form.getFieldValue("vector_stores")}
+                          accessToken={accessToken || ""}
+                          placeholder="Select vector stores"
+                        />
+                      </Form.Item>
+
+                      <Form.Item label="MCP Servers & Access Groups" name="mcp_servers_and_groups">
+                        <MCPServerSelector
+                          onChange={(values) => form.setFieldValue("mcp_servers_and_groups", values)}
+                          value={form.getFieldValue("mcp_servers_and_groups")}
+                          accessToken={accessToken || ""}
+                          placeholder="Select MCP servers and access groups"
+                        />
+                      </Form.Item>
+
+                      <Form.Item label="Metadata" name="metadata">
+                        <Input.TextArea rows={4} />
+                      </Form.Item>
+
+                      <div className="sticky z-10 bg-white p-4 border-t border-gray-200 -bottom-6 -inset-x-6">
+                        <div className="flex justify-end items-center gap-2">
+                          <TremorButton variant="secondary" onClick={() => setIsEditing(false)} disabled={isOrgSaving}>
+                            Cancel
+                          </TremorButton>
+                          <TremorButton type="submit" loading={isOrgSaving}>
+                            Save Changes
+                          </TremorButton>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <Text className="font-medium">Organization Name</Text>
+                        <div>{orgData.organization_alias}</div>
+                      </div>
+                      <div>
+                        <Text className="font-medium">Organization ID</Text>
+                        <div className="font-mono">{orgData.organization_id}</div>
+                      </div>
+                      <div>
+                        <Text className="font-medium">Created At</Text>
+                        <div>{new Date(orgData.created_at).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <Text className="font-medium">Models</Text>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {orgData.models.map((model, index) => (
+                            <Badge key={index} color="red">
+                              {model}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <Text className="font-medium">Rate Limits</Text>
+                        <div>TPM: {orgData.litellm_budget_table.tpm_limit || "Unlimited"}</div>
+                        <div>RPM: {orgData.litellm_budget_table.rpm_limit || "Unlimited"}</div>
+                      </div>
+                      <div>
+                        <Text className="font-medium">Budget</Text>
+                        <div>
+                          Max:{" "}
+                          {orgData.litellm_budget_table.max_budget !== null
+                            ? `$${formatNumberWithCommas(orgData.litellm_budget_table.max_budget, 4)}`
+                            : "No Limit"}
+                        </div>
+                        <div>Reset: {orgData.litellm_budget_table.budget_duration || "Never"}</div>
+                      </div>
+
+                      <ObjectPermissionsView
+                        objectPermission={orgData.object_permission}
+                        variant="inline"
+                        className="pt-4 border-t border-gray-200"
+                        accessToken={accessToken}
+                      />
+                    </div>
+                  )}
+                </Form>
               </Card>
             ),
           },
